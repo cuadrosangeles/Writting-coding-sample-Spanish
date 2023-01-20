@@ -1,0 +1,130 @@
+---
+title: "Ejercicio IDB Social Data"
+author: "Oscar Cuadros"
+date: '2022-10-15'
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+library(devtools)
+library(tidyverse)
+library(idbsocialdataR)
+```
+
+## Pregunta:
+
+**¿Cuál fue el pais que tuvo la caida mas grande en la tasa de pobreza 2019-2020? Determina si cambia por sexo**
+
+## Análisis de pobreza general entre 2019 y 2020
+
+
++ El país de América Latina y el Caribe que tuvo la caída de pobreza más grande entre  2019 y 2020 fue Paraguay. Dicho país redujo en 0.62 puntos porcentuales sus niveles de pobreza. De hecho, fue el único en la región que la redujo en el periodo citado. En todos los demás, incrementó. Cabe destacar que países como Chile, Venezuela, República Dominicana, Panamá, Honduras, Guyana y Guatemala no aparecen en el análisis dado que no registran valores durante los años 2019 o 2020.  
+
++ Nota: El indicador utilizado para medir la pobreza es el porcentaje de la población con ingresos por debajo de $5.0 per capita por día.
+
+
+```{r, warning=FALSE, message=FALSE}
+pobreza <- query_indicator(indicator='pobreza',
+                countries='All',
+                latest=FALSE) %>%
+  select(year, isoalpha3, value) %>%
+  filter(year %in% c(2019, 2020)) %>%
+  arrange(isoalpha3, year) %>%
+  group_by(isoalpha3) %>%
+  mutate(ptos_pctuales = 100 * (value - lag(value))) %>%
+  filter(!is.na(ptos_pctuales)) %>%
+  arrange(ptos_pctuales)
+
+pobreza %>% head(1)
+```
+
+
++ Asimismo, podemos representarlo gráficamente:
+
+```{r, warning=FALSE, message=FALSE}
+pobreza %>%
+  ggplot() +
+  geom_col(aes(x = isoalpha3, y = ptos_pctuales)) +
+  labs(title = "Incremento de la pobreza en puntos porcentuales entre 2019 y 2020",
+       subtitle = "La línea punteada indica el promedio regional",
+       caption = "Fuente: IDB Social Data, 2022",
+       x = "Países",
+       y = "Puntos porcentuales") +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        plot.caption = element_text(hjust = 1),
+        legend.position = c(0.92, 0.2)) +
+  geom_abline(slope = 0, intercept = mean(pobreza$ptos_pctuales),  col = "brown1", lty = 5, size = 0.73) +
+  coord_flip()
+```
+
+\newpage
+
+## Análisis de pobreza por sexo entre 2019 y 2020 
+
++ La respuesta antes brindada no cambia. Aún por sexos, Paraguay es el país que lidera en la reducción de la pobreza. Se aprecia una disminución de la pobreza de 0.80 puntos porcentuales en hombres; mientras 0.44, en mujeres.
+
+```{r, warning=FALSE, message=FALSE}
+pobreza_sexo <- query_indicator(indicator='pobreza',
+                countries='All',
+                categories='sex',
+                latest=FALSE) %>%
+  select(year, isoalpha3, sex, value) %>%
+  filter(year %in% c(2019, 2020)) %>%
+  arrange(isoalpha3, sex, year) %>%
+  group_by(isoalpha3, sex) %>%
+  mutate(ptos_pctuales = 100 * (value - lag(value))) %>%
+  filter(!is.na(ptos_pctuales)) %>%
+  select(isoalpha3, sex, ptos_pctuales)
+```
+
++ A continuación se presenta el cambio en puntos porcentuales de los niveles de pobreza entre sexos.
+
+```{r}
+pobreza_sexo
+```
+
++ País que redujo más la pobreza en hombres:
+
+```{r, warning=FALSE, message=FALSE}
+pobreza_sexo %>%
+  filter(sex == "man") %>%
+  arrange(ptos_pctuales) %>%
+  head(1)
+```
+
++ País que redujo más la pobreza en mujeres:
+
+```{r, warning=FALSE, message=FALSE}
+pobreza_sexo %>%
+  filter(sex == "woman") %>%
+  arrange(ptos_pctuales) %>%
+  head(1)
+```
+
++ Gráficamente:
+
+```{r, warning=FALSE, message=FALSE}
+pobreza_sexo %>%
+  ggplot() +
+  geom_col(aes(x = isoalpha3, y = ptos_pctuales, fill = isoalpha3)) +
+  labs(title = "Incremento de la pobreza en puntos porcentuales por sexos entre 2019 y 2020 ",
+       caption = "Fuente: IDB Social Data, 2022",
+       x = "Países",
+       y = "Puntos porcentuales") +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.caption = element_text(hjust = 1),
+        legend.position = c(0.92, 0.2)) +
+  facet_wrap(vars(sex)) +
+  theme(legend.position="none")
+```
+
+
+
